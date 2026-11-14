@@ -1,13 +1,7 @@
 import customtkinter as ctk
 import random as rand
 import math as mth
-
-CHARS = ("/", "-", "=", "+", "*")
-LAWS = {"/":-10, "-":-5, "=":0, "+":5, "*":10}
-CANVAS_BG = "#242525"
-DNA_LENGTH = 350
-MIN_DISTANCE = 200
-CENTER = (350, 250)
+from constants import CANVAS_BG, CHARS, DNA_LENGTH, CENTER, LAWS, BIRTH_VARIANCE, MIN_DISTANCE, CHILD_AMOUNT
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("green")
@@ -17,6 +11,12 @@ root.resizable(False, False)
 canvas = ctk.CTkCanvas()
 canvas.config(background=CANVAS_BG, highlightthickness=0, width=700, height=500)
 canvas.pack()
+
+def within(a:int, b:int, amount:int):
+    for x in range(a - amount, a + amount):
+        if x == b:
+            return True
+    return False
 
 def randDna():
     return [rand.choice(CHARS) for _ in range(DNA_LENGTH)]
@@ -41,6 +41,8 @@ class Bird:
             self.COLOUR = randColour()
         else:
             self.COLOUR = colour
+
+        print(self.DNA)
 
         self.angle = 90
         self.x = x
@@ -93,11 +95,25 @@ class Bird:
 
     def act(self):
         self.interpret(self.DNA[Bird.index])
+        if self.y < 0:
+            self.rotation(270)
         self.forward()
 
     @classmethod
+    def dnaBalance(cls, dna):
+        tore = 0
+        for x in dna:
+            tore += LAWS[x] / 5
+        return int(tore)
+
+    @classmethod
     def mixDna(cls, dna1, dna2):
-        return rand.choice((dna1, dna2))
+        while True:
+            favour = rand.choice(((dna1, dna1, dna2), (dna2, dna2, dna1)))
+            dna = [rand.choice(favour)[x] for x in range(DNA_LENGTH)]
+            if within(cls.dnaBalance(dna), cls.dnaBalance(dna1), BIRTH_VARIANCE) or within(cls.dnaBalance(dna), cls.dnaBalance(dna2), BIRTH_VARIANCE):
+                break
+        return dna
 
     @classmethod
     def mixColours(cls, colour1, colour2):
@@ -111,13 +127,13 @@ class Bird:
 
     @classmethod
     def breed(cls, birds:list):
-        print(len(birds))
+        rand.shuffle(birds)
         while 1:
             try:
                 p1, p2 = birds[0], birds[1]
             except:
                 break
-            for _ in range(rand.randint(2, 3)):
+            for _ in range(rand.randint(*CHILD_AMOUNT)):
                 cls(dna=cls.mixDna(p1.DNA, p2.DNA), colour=cls.mixColours(p1.COLOUR, p2.COLOUR))
             birds.pop(0)
             birds.pop(0)
@@ -143,7 +159,7 @@ class Bird:
                     surviving.append(bird)
             cls.breed(surviving)
             cls.kill(die)
-        root.after(10, cls.update)
+        root.after(5, cls.update)
 
     @classmethod
     def start(cls, amount:int):
@@ -166,5 +182,6 @@ class Food:
 circle = Food()
 Bird.start(50)
 root.bind("<Button-1>", circle.goto)
+#root.bind("<Button-3>", print)
 
 root.mainloop()
